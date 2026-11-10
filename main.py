@@ -6,13 +6,11 @@ import sys
 
 pygame.init()
 
-
 WIDTH = 1000
 HEIGHT = 800
 
-
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Lunar Lander")
+pygame.display.set_caption("The Money Man")
 clock = pygame.time.Clock()
 
 
