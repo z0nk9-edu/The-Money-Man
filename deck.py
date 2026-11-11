@@ -1,3 +1,6 @@
+import pygame
+
+
 class Card:
     def __init__(self, rank, suit):
         self.rank = rank.lower()
@@ -5,6 +8,10 @@ class Card:
 
     def get(self):
         return f"{self.suit}_{self.rank}"
+
+    def draw(self, screen, position):
+        card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
+        screen.blit(card_image, position)
 
 
 class Deck:
