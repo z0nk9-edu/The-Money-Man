@@ -2,15 +2,19 @@ import pygame
 
 
 class Card:
-    def __init__(self, rank, suit):
+    def __init__(self, rank, suit, hidden=False):
         self.rank = rank.lower()
         self.suit = suit.lower()[0]
+        self.hidden = hidden
 
     def get(self):
         return f"{self.suit}_{self.rank}"
 
-    def draw(self, screen, position):
-        card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
+    def draw(self, screen, position, show=False):
+        if self.hidden or not show:
+            card_image = pygame.image.load("images/cards/simple_back.svg")
+        else:
+            card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
         screen.blit(card_image, position)
 
 
