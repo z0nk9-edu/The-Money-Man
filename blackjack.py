@@ -98,7 +98,7 @@ class BlackJackGame:
         self.human = human
         self.ai = ai
         self.dealer = dealer
-        self.state = "human_turn"  # Possible states: human_turn, ai_turn, dealer_turn, round_over
+        self.state = "human_turn"  # Possible states: "human_turn", "ai_turn", "dealer_turn", "game_over"
         self.message = "Press [H] to Hit or [S] to Stand"
         self.current_bet = 100
 
@@ -182,7 +182,7 @@ class BlackJackGame:
         font = pygame.font.Font(None, 36)
         message_text = font.render(self.message, True, (255, 255, 255))
         screen.blit(message_text, (50, 700))
-        
+
                                                         
 
 
