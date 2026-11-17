@@ -1,6 +1,8 @@
 import pygame
 import asyncio
 import sys
+from itertools import combinations
+from collections import Counter
 
 
 class PokerPlayer:
@@ -75,7 +77,17 @@ class PokerPlayer:
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if call_rect.collidepoint(event.pos):
-                        return min_bet
+                        if min_bet <= self.chips:
+                            return min_bet
+                        else:
+                            prompt_text = "Not enough chips to call. Auto folding."
+                            text_surface = font.render(
+                                prompt_text, True, (255, 255, 255)
+                            )
+                            screen.blit(
+                                text_surface, text_surface.get_rect(center=(500, 400))
+                            )
+                            return -1
                     elif fold_rect.collidepoint(event.pos):
                         return -1
                     elif raise_rect.collidepoint(event.pos):
@@ -89,6 +101,15 @@ class PokerPlayer:
             clock.tick(60)
             await asyncio.sleep(0)
 
+    def ai_bet(self, min_bet):
+        if self.is_human:
+            return None
+
+        if min_bet <= self.chips * 0.1:
+            return min_bet
+        else:
+            return -1  # Fold
+
     def draw(self, screen, position):
         font = pygame.font.Font(None, 36)
         text = font.render(f"{self.name}: {self.chips} chips", True, (255, 255, 255))
@@ -100,24 +121,139 @@ class PokerPlayer:
 class PokerGame:
     def __init__(self, players):
         self.players = players
+        self.current_players = players.copy()
         self.pot = 0
         self.current_bet = 0
+        self.community_cards = []
 
     def reset_game(self, deck):
         self.pot = 0
         self.current_bet = 0
-        for player in self.players:
+        self.current_players = self.players.copy()
+        for player in self.current_players:
             player.reset_hand()
         self.deal(deck)
 
     def deal(self, deck):
-        for player in self.players:
+        for player in self.current_players:
             player.receive_card(deck.draw_card())
             player.receive_card(deck.draw_card())
 
-    def game_loop(self):
-        for i in range(len(self.players)):
-            player = self.players[i]
+    def betting_round(self, deck, screen, clock):
+        player_bets = dict.fromkeys(self.current_players, 0)
+
+        if len(self.community_cards) == 0:
+            self.community_cards.extend(
+                [deck.draw_card(), deck.draw_card(), deck.draw_card()]
+            )
+        elif len(self.community_cards) < 5:
+            self.community_cards.append(deck.draw_card())
+
+        index = 0
+
+        while len(self.current_players) > 1 and set(player_bets.values()) != {
+            self.current_bet
+        }:
+            player = self.current_players[index % len(self.current_players)]
+
+            call_amount = self.current_bet - player_bets[player]
+            bet = player.prompt_bet(call_amount, screen, clock)
+
+            if bet == -1:
+                self.current_players.remove(player)
+                player_bets.pop(player)
+            else:
+                new_total_bet = player_bets[player] + bet
+
+                if new_total_bet > self.current_bet:
+                    self.current_bet = new_total_bet
+
+                self.pot += bet
+                player_bets[player] = new_total_bet
+
+            index += 1
+
+        if len(self.community_cards) == 5:
+            self.win_screen()
+
+    def score_five_card_hand(self, cards):
+        ranks = sorted([c.rank_value() for c in cards], reverse=True)
+        suits = [c.suit for c in cards]
+
+        is_flush = len(set(suits)) == 1
+
+        is_straight = False
+        unique_ranks = sorted(set(ranks), reverse=True)
+        if len(unique_ranks) == 5:
+            if unique_ranks[0] - unique_ranks[4] == 4:
+                is_straight = True
+                straight_high = unique_ranks[0]
+            elif unique_ranks == [14, 5, 4, 3, 2]:
+                is_straight = True
+                ranks = [5, 4, 3, 2, 1]
+                straight_high = 5
+
+        rank_counts = Counter(ranks)
+        sorted_counts = sorted(
+            rank_counts.items(), key=lambda x: (x[1], x[0]), reverse=True
+        )
+        counts_only = [count for rank, count in sorted_counts]
+        sorted_unique_ranks = [rank for rank, count in sorted_counts]
+
+        if is_straight and is_flush:
+            return (8, straight_high)
+        if counts_only == [4, 1]:
+            return (7, sorted_unique_ranks[0], sorted_unique_ranks[1])
+        if counts_only == [3, 2]:
+            return (6, sorted_unique_ranks[0], sorted_unique_ranks[1])
+        if is_flush:
+            return (5, ranks)
+        if is_straight:
+            return (4, straight_high)
+        if counts_only == [3, 1, 1]:
+            return (
+                3,
+                sorted_unique_ranks[0],
+                sorted_unique_ranks[1],
+                sorted_unique_ranks[2],
+            )
+        if counts_only == [2, 2, 1]:
+            return (
+                2,
+                sorted_unique_ranks[0],
+                sorted_unique_ranks[1],
+                sorted_unique_ranks[2],
+            )
+        if counts_only == [2, 1, 1, 1]:
+            return (
+                1,
+                sorted_unique_ranks[0],
+                sorted_unique_ranks[1],
+                sorted_unique_ranks[2],
+                sorted_unique_ranks[3],
+            )
+        return (0, ranks)
+
+    def evaluate_best_hand(self, players, community_cards):
+        player_best_scores = {}
+
+        for player in players:
+            all_cards = player.hand + community_cards
+            best_score = None
+
+            for combo in combinations(all_cards, 5):
+                score = self.score_five_card_hand(combo)
+                if best_score is None or score > best_score:
+                    best_score = score
+            player_best_scores[player] = best_score
+
+        max_score = max(player_best_scores.values())
+
+        winners = [
+            player for player, score in player_best_scores.items() if score == max_score
+        ]
+
+        return winners, max_score
 
     def draw(self, screen, player):
         player.draw(screen, (50, 50))

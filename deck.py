@@ -10,6 +10,24 @@ class Card:
     def get(self):
         return f"{self.suit}_{self.rank}"
 
+    def rank_value(self):
+        rank_order = {
+            "2": 2,
+            "3": 3,
+            "4": 4,
+            "5": 5,
+            "6": 6,
+            "7": 7,
+            "8": 8,
+            "9": 9,
+            "10": 10,
+            "j": 11,
+            "q": 12,
+            "k": 13,
+            "a": 14,
+        }
+        return rank_order[self.rank]
+
     def draw(self, screen, position, show=False):
         if self.hidden or not show:
             card_image = pygame.image.load("images/cards/simple_back.svg")
