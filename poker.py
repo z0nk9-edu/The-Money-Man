@@ -3,6 +3,9 @@ import asyncio
 import sys
 from itertools import combinations
 from collections import Counter
+from deck import Card, Deck
+
+font = pygame.font.Font(None, 36)
 
 
 class PokerPlayer:
@@ -18,13 +21,13 @@ class PokerPlayer:
     def reset_hand(self):
         self.hand = []
 
-    def _draw_button(self, screen, font, rect, text, color):
+    def _draw_button(self, screen, rect, text, color):
         pygame.draw.rect(screen, color, rect)
         text_surface = font.render(text, True, (255, 255, 255))
         text_rect = text_surface.get_rect(center=rect.center)
         screen.blit(text_surface, text_rect)
 
-    async def _prompt_raise_amount(self, screen, clock, font, min_bet):
+    async def _prompt_raise_amount(self, screen, clock, min_bet):
         bet_str = ""
 
         while True:
@@ -36,7 +39,7 @@ class PokerPlayer:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:
                         bet = int(bet_str) if bet_str else 0
-                        if bet > min_bet:
+                        if bet > min_bet and bet <= self.chips:
                             return bet
                     elif event.key == pygame.K_BACKSPACE:
                         bet_str = bet_str[:-1]
@@ -59,16 +62,15 @@ class PokerPlayer:
         if not self.is_human:
             return
 
-        font = pygame.font.Font(None, 36)
         call_rect = pygame.Rect(50, 150, 140, 50)
         fold_rect = pygame.Rect(50, 220, 140, 50)
         raise_rect = pygame.Rect(50, 290, 140, 50)
         call_label = "Check" if min_bet == 0 else f"Call {min_bet} chips"
 
         while True:
-            self._draw_button(screen, font, call_rect, call_label, (0, 128, 0))
-            self._draw_button(screen, font, fold_rect, "Fold", (128, 0, 0))
-            self._draw_button(screen, font, raise_rect, "Raise", (0, 128, 128))
+            self._draw_button(screen, call_rect, call_label, (0, 128, 0))
+            self._draw_button(screen, fold_rect, "Fold", (128, 0, 0))
+            self._draw_button(screen, raise_rect, "Raise", (0, 128, 128))
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -78,23 +80,25 @@ class PokerPlayer:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if call_rect.collidepoint(event.pos):
                         if min_bet <= self.chips:
+                            self.chips -= min_bet
                             return min_bet
                         else:
-                            prompt_text = "Not enough chips to call. Auto folding."
+                            prompt_text = "Not enough chips to call. All in."
                             text_surface = font.render(
                                 prompt_text, True, (255, 255, 255)
                             )
                             screen.blit(
                                 text_surface, text_surface.get_rect(center=(500, 400))
                             )
-                            return -1
+                            return self.chips
                     elif fold_rect.collidepoint(event.pos):
                         return -1
                     elif raise_rect.collidepoint(event.pos):
                         raise_amount = await self._prompt_raise_amount(
-                            screen, clock, font, min_bet
+                            screen, clock, min_bet
                         )
                         if raise_amount is not None:
+                            self.chips -= raise_amount
                             return raise_amount
 
             pygame.display.flip()
@@ -111,7 +115,6 @@ class PokerPlayer:
             return -1  # Fold
 
     def draw(self, screen, position):
-        font = pygame.font.Font(None, 36)
         text = font.render(f"{self.name}: {self.chips} chips", True, (255, 255, 255))
         screen.blit(text, position)
         for i, card in enumerate(self.hand):
@@ -125,14 +128,16 @@ class PokerGame:
         self.pot = 0
         self.current_bet = 0
         self.community_cards = []
+        self.deck = Deck()
 
-    def reset_game(self, deck):
+    def reset_game(self):
         self.pot = 0
         self.current_bet = 0
         self.current_players = self.players.copy()
+        self.community_cards = []
         for player in self.current_players:
             player.reset_hand()
-        self.deal(deck)
+        self.deck = Deck()
 
     def deal(self, deck):
         for player in self.current_players:
@@ -174,7 +179,17 @@ class PokerGame:
             index += 1
 
         if len(self.community_cards) == 5:
-            self.win_screen()
+            self.win_screen(screen)
+
+    def win_screen(self, screen):
+        winners, score = self.evaluate_best_hand(
+            self.current_players, self.community_cards
+        )
+        winner_names = ", ".join([winner.name for winner in winners])
+        prompt_text = f"Winner(s): {winner_names} with score: {score} earned {self.pot // len(self.current_players)} chips!"
+        text_surface = font.render(prompt_text, True, (255, 255, 255))
+        screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
+        self.reset_game()
 
     def score_five_card_hand(self, cards):
         ranks = sorted([c.rank_value() for c in cards], reverse=True)
@@ -252,11 +267,9 @@ class PokerGame:
         winners = [
             player for player, score in player_best_scores.items() if score == max_score
         ]
-
         return winners, max_score
 
     def draw(self, screen, player):
         player.draw(screen, (50, 50))
-        font = pygame.font.Font(None, 36)
         pot_text = font.render(f"Pot: {self.pot} chips", True, (255, 255, 255))
         screen.blit(pot_text, (50, 100))
