@@ -16,6 +16,7 @@ class PokerPlayer:
         self.is_human = is_human
 
     def receive_card(self, card):
+        card.hidden = not self.is_human
         self.hand.append(card)
 
     def reset_hand(self):
@@ -58,9 +59,11 @@ class PokerPlayer:
             clock.tick(60)
             await asyncio.sleep(0)
 
-    async def prompt_bet(self, min_bet, screen, clock):
+    async def prompt_bet(self, min_bet, community_cards, screen, clock):
         if not self.is_human:
-            return
+            return self.ai_bet(min_bet, community_cards)
+        if self.chips == 0:
+            return 0
 
         call_rect = pygame.Rect(50, 150, 140, 50)
         fold_rect = pygame.Rect(50, 220, 140, 50)
@@ -105,14 +108,24 @@ class PokerPlayer:
             clock.tick(60)
             await asyncio.sleep(0)
 
-    def ai_bet(self, min_bet):
-        if self.is_human:
-            return None
-
-        if min_bet <= self.chips * 0.1:
+    def ai_bet(self, min_bet, community_cards):
+        if community_cards:
+            all_cards = self.hand + community_cards
+            best_score = None
+            for combo in combinations(all_cards, 5):
+                score = score_five_card_hand(combo)
+                if best_score is None or score > best_score:
+                    best_score = score
+            if best_score[0] >= 3 and self.chips > min_bet:
+                return min_bet * 1.5 if self.chips > min_bet * 1.5 else min_bet
+            elif best_score[0] >= 1 and self.chips > min_bet:
+                return min_bet
+            else:
+                return -1
+        if min_bet < self.chips / 10:
             return min_bet
         else:
-            return -1  # Fold
+            return -1
 
     def draw(self, screen, position):
         text = font.render(f"{self.name}: {self.chips} chips", True, (255, 255, 255))
@@ -162,7 +175,7 @@ class PokerGame:
             player = self.current_players[index % len(self.current_players)]
 
             call_amount = self.current_bet - player_bets[player]
-            bet = player.prompt_bet(call_amount, screen, clock)
+            bet = player.prompt_bet(call_amount, self.community_cards, screen, clock)
 
             if bet == -1:
                 self.current_players.remove(player)
@@ -191,64 +204,6 @@ class PokerGame:
         screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
         self.reset_game()
 
-    def score_five_card_hand(self, cards):
-        ranks = sorted([c.rank_value() for c in cards], reverse=True)
-        suits = [c.suit for c in cards]
-
-        is_flush = len(set(suits)) == 1
-
-        is_straight = False
-        unique_ranks = sorted(set(ranks), reverse=True)
-        if len(unique_ranks) == 5:
-            if unique_ranks[0] - unique_ranks[4] == 4:
-                is_straight = True
-                straight_high = unique_ranks[0]
-            elif unique_ranks == [14, 5, 4, 3, 2]:
-                is_straight = True
-                ranks = [5, 4, 3, 2, 1]
-                straight_high = 5
-
-        rank_counts = Counter(ranks)
-        sorted_counts = sorted(
-            rank_counts.items(), key=lambda x: (x[1], x[0]), reverse=True
-        )
-        counts_only = [count for rank, count in sorted_counts]
-        sorted_unique_ranks = [rank for rank, count in sorted_counts]
-
-        if is_straight and is_flush:
-            return (8, straight_high)
-        if counts_only == [4, 1]:
-            return (7, sorted_unique_ranks[0], sorted_unique_ranks[1])
-        if counts_only == [3, 2]:
-            return (6, sorted_unique_ranks[0], sorted_unique_ranks[1])
-        if is_flush:
-            return (5, ranks)
-        if is_straight:
-            return (4, straight_high)
-        if counts_only == [3, 1, 1]:
-            return (
-                3,
-                sorted_unique_ranks[0],
-                sorted_unique_ranks[1],
-                sorted_unique_ranks[2],
-            )
-        if counts_only == [2, 2, 1]:
-            return (
-                2,
-                sorted_unique_ranks[0],
-                sorted_unique_ranks[1],
-                sorted_unique_ranks[2],
-            )
-        if counts_only == [2, 1, 1, 1]:
-            return (
-                1,
-                sorted_unique_ranks[0],
-                sorted_unique_ranks[1],
-                sorted_unique_ranks[2],
-                sorted_unique_ranks[3],
-            )
-        return (0, ranks)
-
     def evaluate_best_hand(self, players, community_cards):
         player_best_scores = {}
 
@@ -257,7 +212,7 @@ class PokerGame:
             best_score = None
 
             for combo in combinations(all_cards, 5):
-                score = self.score_five_card_hand(combo)
+                score = score_five_card_hand(combo)
                 if best_score is None or score > best_score:
                     best_score = score
             player_best_scores[player] = best_score
@@ -273,3 +228,62 @@ class PokerGame:
         player.draw(screen, (50, 50))
         pot_text = font.render(f"Pot: {self.pot} chips", True, (255, 255, 255))
         screen.blit(pot_text, (50, 100))
+
+
+def score_five_card_hand(cards):
+    ranks = sorted([c.rank_value() for c in cards], reverse=True)
+    suits = [c.suit for c in cards]
+
+    is_flush = len(set(suits)) == 1
+
+    is_straight = False
+    unique_ranks = sorted(set(ranks), reverse=True)
+    if len(unique_ranks) == 5:
+        if unique_ranks[0] - unique_ranks[4] == 4:
+            is_straight = True
+            straight_high = unique_ranks[0]
+        elif unique_ranks == [14, 5, 4, 3, 2]:
+            is_straight = True
+            ranks = [5, 4, 3, 2, 1]
+            straight_high = 5
+
+    rank_counts = Counter(ranks)
+    sorted_counts = sorted(
+        rank_counts.items(), key=lambda x: (x[1], x[0]), reverse=True
+    )
+    counts_only = [count for rank, count in sorted_counts]
+    sorted_unique_ranks = [rank for rank, count in sorted_counts]
+
+    if is_straight and is_flush:
+        return (8, straight_high)
+    if counts_only == [4, 1]:
+        return (7, sorted_unique_ranks[0], sorted_unique_ranks[1])
+    if counts_only == [3, 2]:
+        return (6, sorted_unique_ranks[0], sorted_unique_ranks[1])
+    if is_flush:
+        return (5, ranks)
+    if is_straight:
+        return (4, straight_high)
+    if counts_only == [3, 1, 1]:
+        return (
+            3,
+            sorted_unique_ranks[0],
+            sorted_unique_ranks[1],
+            sorted_unique_ranks[2],
+        )
+    if counts_only == [2, 2, 1]:
+        return (
+            2,
+            sorted_unique_ranks[0],
+            sorted_unique_ranks[1],
+            sorted_unique_ranks[2],
+        )
+    if counts_only == [2, 1, 1, 1]:
+        return (
+            1,
+            sorted_unique_ranks[0],
+            sorted_unique_ranks[1],
+            sorted_unique_ranks[2],
+            sorted_unique_ranks[3],
+        )
+    return (0, ranks)
