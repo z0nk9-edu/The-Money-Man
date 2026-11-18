@@ -28,11 +28,12 @@ class Card:
         }
         return rank_order[self.rank]
 
-    def draw(self, screen, position, show=False):
-        if self.hidden or not show:
+    def draw(self, screen, position):
+        if self.hidden:
             card_image = pygame.image.load("images/cards/simple_back.svg")
         else:
             card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
+        card_image = pygame.transform.scale(card_image, (100, 150))
         screen.blit(card_image, position)
 
 

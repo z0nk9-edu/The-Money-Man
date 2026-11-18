@@ -5,15 +5,14 @@ from itertools import combinations
 from collections import Counter
 from deck import Card, Deck
 
-font = pygame.font.Font(None, 36)
-
 
 class PokerPlayer:
-    def __init__(self, name, chips, is_human=True):
+    def __init__(self, name, chips=100, is_human=True):
         self.name = name
         self.chips = chips
         self.hand = []
         self.is_human = is_human
+        self.font = pygame.font.Font(None, 36)
 
     def receive_card(self, card):
         card.hidden = not self.is_human
@@ -24,7 +23,7 @@ class PokerPlayer:
 
     def _draw_button(self, screen, rect, text, color):
         pygame.draw.rect(screen, color, rect)
-        text_surface = font.render(text, True, (255, 255, 255))
+        text_surface = self.font.render(text, True, (255, 255, 255))
         text_rect = text_surface.get_rect(center=rect.center)
         screen.blit(text_surface, text_rect)
 
@@ -52,7 +51,7 @@ class PokerPlayer:
             screen.fill((0, 0, 0))
             display_bet = bet_str if bet_str else "0"
             prompt_text = f"Your bet (Min > {min_bet}): {display_bet}"
-            text_surface = font.render(prompt_text, True, (255, 255, 255))
+            text_surface = self.font.render(prompt_text, True, (255, 255, 255))
             screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
 
             pygame.display.flip()
@@ -87,7 +86,7 @@ class PokerPlayer:
                             return min_bet
                         else:
                             prompt_text = "Not enough chips to call. All in."
-                            text_surface = font.render(
+                            text_surface = self.font.render(
                                 prompt_text, True, (255, 255, 255)
                             )
                             screen.blit(
@@ -128,7 +127,9 @@ class PokerPlayer:
             return -1
 
     def draw(self, screen, position):
-        text = font.render(f"{self.name}: {self.chips} chips", True, (255, 255, 255))
+        text = self.font.render(
+            f"{self.name}: {self.chips} chips", True, (255, 255, 255)
+        )
         screen.blit(text, position)
         for i, card in enumerate(self.hand):
             card.draw(screen, (position[0] + i * 50, position[1] + 40))
@@ -142,6 +143,10 @@ class PokerGame:
         self.current_bet = 0
         self.community_cards = []
         self.deck = Deck()
+        self.font = pygame.font.Font(None, 36)
+
+    def add_card(self, card):
+        self.deck.add_card(card)
 
     def reset_game(self):
         self.pot = 0
@@ -152,20 +157,20 @@ class PokerGame:
             player.reset_hand()
         self.deck = Deck()
 
-    def deal(self, deck):
+    def deal(self):
         for player in self.current_players:
-            player.receive_card(deck.draw_card())
-            player.receive_card(deck.draw_card())
+            player.receive_card(self.deck.draw_card())
+            player.receive_card(self.deck.draw_card())
 
-    def betting_round(self, deck, screen, clock):
+    def betting_round(self, screen, clock):
         player_bets = dict.fromkeys(self.current_players, 0)
 
         if len(self.community_cards) == 0:
             self.community_cards.extend(
-                [deck.draw_card(), deck.draw_card(), deck.draw_card()]
+                [self.deck.draw_card(), self.deck.draw_card(), self.deck.draw_card()]
             )
         elif len(self.community_cards) < 5:
-            self.community_cards.append(deck.draw_card())
+            self.community_cards.append(self.deck.draw_card())
 
         index = 0
 
@@ -180,6 +185,7 @@ class PokerGame:
             if bet == -1:
                 self.current_players.remove(player)
                 player_bets.pop(player)
+                player.reset_hand()
             else:
                 new_total_bet = player_bets[player] + bet
 
@@ -200,7 +206,7 @@ class PokerGame:
         )
         winner_names = ", ".join([winner.name for winner in winners])
         prompt_text = f"Winner(s): {winner_names} with score: {score} earned {self.pot // len(self.current_players)} chips!"
-        text_surface = font.render(prompt_text, True, (255, 255, 255))
+        text_surface = self.font.render(prompt_text, True, (255, 255, 255))
         screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
         self.reset_game()
 
@@ -224,9 +230,25 @@ class PokerGame:
         ]
         return winners, max_score
 
-    def draw(self, screen, player):
-        player.draw(screen, (50, 50))
-        pot_text = font.render(f"Pot: {self.pot} chips", True, (255, 255, 255))
+    def draw(self, screen):
+        import math
+
+        screen_width, screen_height = screen.get_size()
+        center_x = screen_width // 2
+        center_y = screen_height // 2
+
+        radius = 200
+
+        total_players = len(self.current_players)
+
+        for i, player in enumerate(self.current_players):
+            angle = (i * 2 * math.pi) / total_players
+
+            x = center_x + int(radius * math.cos(angle))
+            y = center_y + int(radius * math.sin(angle))
+
+            player.draw(screen, (x, y))
+        pot_text = self.font.render(f"Pot: {self.pot} chips", True, (255, 255, 255))
         screen.blit(pot_text, (50, 100))
 
 
