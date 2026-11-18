@@ -9,23 +9,17 @@ GRID_SIZE = 31
 TILE = 25
 WIDTH = HEIGHT = GRID_SIZE * TILE
 FPS = 60
-
 WALL = 1
 PATH = 0
-
 START = (1, 1)
 HOME = (GRID_SIZE - 2, GRID_SIZE - 2)
-
 EXTRA_OPENINGS = 45
 GEN_STEPS_PER_FRAME = 6
-
 DIRECTIONS = [(0, -1), (0, 1), (-1, 0), (1, 0)]
-
 COLOR_BG = (8, 6, 14)
 COLOR_PATH = (16, 14, 26)
 COLOR_WALL = (30, 18, 52)
 COLOR_CURRENT = (241, 196, 15)
-
 
 class MazeGenerator:
     def __init__(self, size=GRID_SIZE, extra_openings=EXTRA_OPENINGS):
