@@ -14,13 +14,11 @@ class PokerPlayer:
         self.hand = []
 
     def draw(self, screen, position):
-        # Draw the player's hand and chips on the screen
         font = pygame.font.Font(None, 36)
         text = font.render(f"{self.name}: {self.chips} chips", True, (255, 255, 255))
         screen.blit(text, position)
         for i, card in enumerate(self.hand):
-            card_image = pygame.image.load(f"images/cards/simple_{card.get()}.svg")
-            screen.blit(card_image, (position[0] + i * 50, position[1] + 40))
+            card.draw(screen, (position[0] + i * 50, position[1] + 40))
 
 
 class PokerGame:
