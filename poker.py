@@ -83,6 +83,7 @@ class PokerPlayer:
                     if call_rect.collidepoint(event.pos):
                         if min_bet <= self.chips:
                             self.chips -= min_bet
+                            print("call")
                             return min_bet
                         else:
                             prompt_text = "Not enough chips to call. All in."
@@ -94,6 +95,7 @@ class PokerPlayer:
                             )
                             return self.chips
                     elif fold_rect.collidepoint(event.pos):
+                        print("fold")
                         return -1
                     elif raise_rect.collidepoint(event.pos):
                         raise_amount = await self._prompt_raise_amount(
@@ -162,7 +164,7 @@ class PokerGame:
             player.receive_card(self.deck.draw_card())
             player.receive_card(self.deck.draw_card())
 
-    def betting_round(self, screen, clock):
+    async def betting_round(self, screen, clock):
         player_bets = dict.fromkeys(self.current_players, 0)
 
         if len(self.community_cards) == 0:
@@ -174,13 +176,13 @@ class PokerGame:
 
         index = 0
 
-        while len(self.current_players) > 1 and set(player_bets.values()) != {
-            self.current_bet
-        }:
+        while True:
             player = self.current_players[index % len(self.current_players)]
 
             call_amount = self.current_bet - player_bets[player]
-            bet = player.prompt_bet(call_amount, self.community_cards, screen, clock)
+            bet = await player.prompt_bet(
+                call_amount, self.community_cards, screen, clock
+            )
 
             if bet == -1:
                 self.current_players.remove(player)
@@ -196,6 +198,12 @@ class PokerGame:
                 player_bets[player] = new_total_bet
 
             index += 1
+            if len(self.current_players) > 1 and set(player_bets.values()) != {
+                self.current_bet
+            }:
+                continue
+            else:
+                break
 
         if len(self.community_cards) == 5:
             self.win_screen(screen)

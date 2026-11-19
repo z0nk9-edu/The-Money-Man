@@ -31,6 +31,7 @@ async def main():
     poker_ai_2 = poker.PokerPlayer("AI Player 2", is_human=False)
     poker_game = poker.PokerGame([poker_player, poker_ai_1, poker_ai_2])
     while running:
+        screen.fill((0, 0, 0))
         next_button_rect = pygame.Rect(WIDTH - 150, HEIGHT - 50, 140, 40)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -40,8 +41,7 @@ async def main():
                     if not poker_player.hand:
                         poker_game.deal()
                     else:
-                        poker_game.betting_round(screen, clock)
-        screen.fill((0, 0, 0))
+                        await poker_game.betting_round(screen, clock)
         _draw_button(next_button_rect, "Next", (0, 128, 0))
         poker_game.draw(screen)
         pygame.display.flip()
