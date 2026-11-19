@@ -60,7 +60,10 @@ class PokerPlayer:
 
     async def prompt_bet(self, min_bet, community_cards, screen, clock):
         if not self.is_human:
-            return self.ai_bet(min_bet, community_cards)
+            bet = self.ai_bet(min_bet, community_cards)
+            if bet == -1:
+                self.chips -= bet
+            return bet
         if self.chips == 0:
             return 0
 
@@ -83,7 +86,6 @@ class PokerPlayer:
                     if call_rect.collidepoint(event.pos):
                         if min_bet <= self.chips:
                             self.chips -= min_bet
-                            print("call")
                             return min_bet
                         else:
                             prompt_text = "Not enough chips to call. All in."
@@ -95,15 +97,15 @@ class PokerPlayer:
                             )
                             return self.chips
                     elif fold_rect.collidepoint(event.pos):
-                        print("fold")
                         return -1
                     elif raise_rect.collidepoint(event.pos):
-                        raise_amount = await self._prompt_raise_amount(
-                            screen, clock, min_bet
-                        )
-                        if raise_amount is not None:
-                            self.chips -= raise_amount
-                            return raise_amount
+                        raise_amount = None
+                        while raise_amount is None:
+                            raise_amount = await self._prompt_raise_amount(
+                                screen, clock, min_bet
+                            )
+                        self.chips -= raise_amount
+                        return raise_amount
 
             pygame.display.flip()
             clock.tick(60)
@@ -206,17 +208,20 @@ class PokerGame:
                 break
 
         if len(self.community_cards) == 5:
-            self.win_screen(screen)
+            self.win_screen(screen, clock)
 
-    def win_screen(self, screen):
+    def win_screen(self, screen, clock):
         winners, score = self.evaluate_best_hand(
             self.current_players, self.community_cards
         )
+        for winner in winners:
+            winner.chips += self.pot // len(winners)
         winner_names = ", ".join([winner.name for winner in winners])
         prompt_text = f"Winner(s): {winner_names} with score: {score} earned {self.pot // len(self.current_players)} chips!"
         text_surface = self.font.render(prompt_text, True, (255, 255, 255))
         screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
         self.reset_game()
+        clock.tick(0.01)
 
     def evaluate_best_hand(self, players, community_cards):
         player_best_scores = {}
@@ -256,6 +261,8 @@ class PokerGame:
             y = center_y + int(radius * math.sin(angle))
 
             player.draw(screen, (x, y))
+        for i, card in enumerate(self.community_cards):
+            card.draw(screen, (center_x - 150 + i * 50, center_y - 75))
         pot_text = self.font.render(f"Pot: {self.pot} chips", True, (255, 255, 255))
         screen.blit(pot_text, (50, 100))
 
