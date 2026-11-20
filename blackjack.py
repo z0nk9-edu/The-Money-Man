@@ -2,11 +2,10 @@ import pygame
 import deck
 
 class BlackJackPlayer:
-    def __init__(self, name, chips, is_AI=False):
+    def __init__(self, name, chips):
         self.name = name
         self.chips = chips
         self.hand = []
-        self.is_AI = is_AI
 
     def receive_card(self, card):
         self.hand.append(card)
@@ -49,7 +48,7 @@ class BlackJackPlayer:
             card_x = position[0] + i * 50
             card_y = position[1] + 40
             if hide_first_card and i == 0:
-                pygame.draw.rect(surface, (0, 0, 0), (card_x, card_y, 40, 60))  # Draw a black rectangle for the hidden card
+                pygame.draw.rect(surface, (0, 0, 0), (card_x, card_y, 40, 60))
             else:
                 card_image = pygame.image.load(f"images/cards/simple_{card.get()}.png")
                 surface.blit(card_image, (card_x, card_y))
@@ -76,7 +75,6 @@ class BlackJackPlayer:
         elif current_value >= 17:
             return "stand"
 
-        dealer_value = self.get_single_card_value(dealer_up_card)
         if dealer_up_card.rank == "a":
             dealer_value = 11
         else:
