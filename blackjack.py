@@ -47,11 +47,7 @@ class BlackJackPlayer:
         for i, card in enumerate(self.hand):
             card_x = position[0] + i * 50
             card_y = position[1] + 40
-            if hide_first_card and i == 0:
-                pygame.draw.rect(surface, (0, 0, 0), (card_x, card_y, 40, 60))
-            else:
-                card_image = pygame.image.load(f"images/cards/simple_{card.get()}.png")
-                surface.blit(card_image, (card_x, card_y))
+            card.draw(surface, (card_x, card_y))
         
     # AI Logic
 
@@ -105,6 +101,7 @@ class BlackJackGame:
             self.human.receive_card(deck.draw_card())
             self.ai.receive_card(deck.draw_card())
             self.dealer.receive_card(deck.draw_card())
+        self.dealer.hand[0].hidden = True
 
     def reset_game(self, deck):
         self.state = "human_turn"
@@ -136,6 +133,7 @@ class BlackJackGame:
                     break
             self.state = "dealer_turn"
         elif self.state == "dealer_turn":
+            self.dealer.hand[0].hidden = False
             while self.dealer.get_hand_value() < 17:
                 self.dealer.receive_card(deck.draw_card())
             self.end_round()
