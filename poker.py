@@ -121,7 +121,11 @@ class PokerPlayer:
                     best_score = score
             if best_score[0] >= 3 and self.chips > min_bet:
                 return min_bet * 1.5 if self.chips > min_bet * 1.5 else min_bet
-            elif best_score[0] >= 1 and self.chips > min_bet:
+            elif (
+                best_score[0] >= 1
+                and self.chips > min_bet
+                and min_bet < self.chips // 3
+            ):
                 return min_bet
             else:
                 return -1
@@ -220,8 +224,9 @@ class PokerGame:
         prompt_text = f"Winner(s): {winner_names} with score: {score} earned {self.pot // len(self.current_players)} chips!"
         text_surface = self.font.render(prompt_text, True, (255, 255, 255))
         screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
+        pygame.display.flip()
+        clock.tick(1)
         self.reset_game()
-        clock.tick(0.01)
 
     def evaluate_best_hand(self, players, community_cards):
         player_best_scores = {}

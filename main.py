@@ -29,7 +29,8 @@ async def main():
     poker_player = poker.PokerPlayer("Player 1", is_human=True)
     poker_ai_1 = poker.PokerPlayer("AI Player 1", is_human=False)
     poker_ai_2 = poker.PokerPlayer("AI Player 2", is_human=False)
-    poker_game = poker.PokerGame([poker_player, poker_ai_1, poker_ai_2])
+    players = [poker_player, poker_ai_1, poker_ai_2]
+    poker_game = poker.PokerGame(players)
     while running:
         screen.fill((0, 0, 0))
         next_button_rect = pygame.Rect(WIDTH - 150, HEIGHT - 50, 140, 40)
@@ -38,7 +39,7 @@ async def main():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if next_button_rect.collidepoint(event.pos):
-                    if not poker_player.hand:
+                    if all(player.hand == [] for player in players):
                         poker_game.deal()
                     else:
                         await poker_game.betting_round(screen, clock)
