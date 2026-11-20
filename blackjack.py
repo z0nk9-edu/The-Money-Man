@@ -182,13 +182,3 @@ class BlackJackGame:
         font = pygame.font.Font(None, 36)
         message_text = font.render(self.message, True, (255, 255, 255))
         screen.blit(message_text, (50, 700))
-
-                                                        
-
-
-
-        
-
-        
-
-        
