@@ -61,7 +61,7 @@ class PokerPlayer:
     async def prompt_bet(self, min_bet, community_cards, screen, clock):
         if not self.is_human:
             bet = self.ai_bet(min_bet, community_cards)
-            if bet == -1:
+            if bet != -1:
                 self.chips -= bet
             return bet
         if self.chips == 0:
@@ -177,7 +177,7 @@ class PokerGame:
             self.community_cards.extend(
                 [self.deck.draw_card(), self.deck.draw_card(), self.deck.draw_card()]
             )
-        elif len(self.community_cards) < 5:
+        elif len(self.community_cards) <= 5:
             self.community_cards.append(self.deck.draw_card())
 
         index = 0
@@ -209,12 +209,14 @@ class PokerGame:
             }:
                 continue
             else:
+                self.current_bet = 0
                 break
-
-        if len(self.community_cards) == 5:
+        if len(self.community_cards) == 6:
+            self.community_cards.pop()
             self.win_screen(screen, clock)
 
     def win_screen(self, screen, clock):
+        screen.fill((0, 0, 0))
         winners, score = self.evaluate_best_hand(
             self.current_players, self.community_cards
         )

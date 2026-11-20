@@ -43,6 +43,7 @@ async def main():
                         poker_game.deal()
                     else:
                         await poker_game.betting_round(screen, clock)
+                        poker_game.draw(screen)
         _draw_button(next_button_rect, "Next", (0, 128, 0))
         poker_game.draw(screen)
         pygame.display.flip()
