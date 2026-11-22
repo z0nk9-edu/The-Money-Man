@@ -59,23 +59,35 @@ class PokerPlayer:
             await asyncio.sleep(0)
 
     async def prompt_bet(self, min_bet, community_cards, screen, clock):
+        screen.fill((0, 0, 0))
         if not self.is_human:
             bet = self.ai_bet(min_bet, community_cards)
             if bet != -1:
                 self.chips -= bet
+                prompt_text = (
+                    f"{self.name} bets {bet} chips."
+                    if bet > 0
+                    else f"{self.name} checks."
+                )
+            else:
+                prompt_text = f"{self.name} folds."
+            text_surface = self.font.render(prompt_text, True, (255, 255, 255))
+            screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
+            pygame.display.flip()
+            clock.tick(1)
             return bet
         if self.chips == 0:
             return 0
-
-        call_rect = pygame.Rect(50, 150, 140, 50)
-        fold_rect = pygame.Rect(50, 220, 140, 50)
-        raise_rect = pygame.Rect(50, 290, 140, 50)
+        call_rect = pygame.Rect(230, 700, 140, 50)
+        fold_rect = pygame.Rect(430, 700, 140, 50)
+        raise_rect = pygame.Rect(630, 700, 140, 50)
         call_label = "Check" if min_bet == 0 else f"Call {min_bet} chips"
 
         while True:
             self._draw_button(screen, call_rect, call_label, (0, 128, 0))
             self._draw_button(screen, fold_rect, "Fold", (128, 0, 0))
             self._draw_button(screen, raise_rect, "Raise", (0, 128, 128))
+            self.draw(screen, tuple(x / 2 for x in screen.get_size()))
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -112,29 +124,36 @@ class PokerPlayer:
             await asyncio.sleep(0)
 
     def ai_bet(self, min_bet, community_cards):
-        if community_cards:
-            all_cards = self.hand + community_cards
-            best_score = None
-            for combo in combinations(all_cards, 5):
-                score = score_five_card_hand(combo)
-                if best_score is None or score > best_score:
-                    best_score = score
-            if best_score[0] >= 3 and self.chips > min_bet:
-                return min_bet * 1.5 if self.chips > min_bet * 1.5 else min_bet
-            elif (
-                best_score[0] >= 1
-                and self.chips > min_bet
-                and min_bet < self.chips // 3
+        if not community_cards:
+            if (
+                self.hand[0].rank_value() >= 11
+                or self.hand[1].rank_value() >= 11
+                or self.hand[0].rank_value() == self.hand[1].rank_value()
             ):
-                return min_bet
+                open_bet = max(10, self.chips // 10)
+                bet = min_bet * 1.5 + 10 if min_bet > 0 else open_bet
+                return bet if self.chips > bet else min_bet
             else:
-                return -1
-        if min_bet < self.chips / 10:
+                return -1 if min_bet > 0 else 0
+        all_cards = self.hand + community_cards
+        best_score = None
+        for combo in combinations(all_cards, 5):
+            score = score_five_card_hand(combo)
+            if best_score is None or score > best_score:
+                best_score = score
+        if best_score[0] >= 3:
+            open_bet = max(10, self.chips // 10)
+            bet = min_bet * 1.5 + 10 if min_bet > 0 else open_bet
+            return bet if self.chips > bet else min_bet
+        elif min_bet == 0:
+            return 0
+        elif best_score[0] >= 1 and min_bet < self.chips // 3:
             return min_bet
         else:
             return -1
 
     def draw(self, screen, position):
+        position = tuple(x - 100 for x in position)
         text = self.font.render(
             f"{self.name}: {self.chips} chips", True, (255, 255, 255)
         )
@@ -171,19 +190,19 @@ class PokerGame:
             player.receive_card(self.deck.draw_card())
 
     async def betting_round(self, screen, clock):
-        player_bets = dict.fromkeys(self.current_players, 0)
-
-        if len(self.community_cards) == 0:
-            self.community_cards.extend(
-                [self.deck.draw_card(), self.deck.draw_card(), self.deck.draw_card()]
-            )
-        elif len(self.community_cards) <= 5:
-            self.community_cards.append(self.deck.draw_card())
+        turn_order = list(self.current_players)
+        player_bets = dict.fromkeys(turn_order, 0)
+        acted = set()
+        folded = set()
 
         index = 0
 
         while True:
-            player = self.current_players[index % len(self.current_players)]
+            player = turn_order[index % len(turn_order)]
+
+            if player in folded:
+                index += 1
+                continue
 
             call_amount = self.current_bet - player_bets[player]
             bet = await player.prompt_bet(
@@ -191,27 +210,42 @@ class PokerGame:
             )
 
             if bet == -1:
-                self.current_players.remove(player)
-                player_bets.pop(player)
+                folded.add(player)
+                acted.discard(player)
                 player.reset_hand()
             else:
                 new_total_bet = player_bets[player] + bet
 
                 if new_total_bet > self.current_bet:
                     self.current_bet = new_total_bet
+                    acted = {player}
+                else:
+                    acted.add(player)
 
                 self.pot += bet
                 player_bets[player] = new_total_bet
 
             index += 1
-            if len(self.current_players) > 1 and set(player_bets.values()) != {
-                self.current_bet
-            }:
+            remaining = [p for p in turn_order if p not in folded]
+            if len(remaining) > 1 and not (
+                len(acted) == len(remaining)
+                and {player_bets[p] for p in remaining} == {self.current_bet}
+            ):
                 continue
             else:
                 self.current_bet = 0
                 break
-        if len(self.community_cards) == 6:
+
+        self.current_players = [p for p in turn_order if p not in folded]
+        self.draw(screen)
+        if len(self.community_cards) == 0:
+            self.community_cards.extend(
+                [self.deck.draw_card(), self.deck.draw_card(), self.deck.draw_card()]
+            )
+        elif len(self.community_cards) <= 5:
+            self.community_cards.append(self.deck.draw_card())
+        pygame.display.flip()
+        if len(self.community_cards) == 6 or len(self.current_players) == 1:
             self.community_cards.pop()
             self.win_screen(screen, clock)
 
@@ -223,7 +257,7 @@ class PokerGame:
         for winner in winners:
             winner.chips += self.pot // len(winners)
         winner_names = ", ".join([winner.name for winner in winners])
-        prompt_text = f"Winner(s): {winner_names} with score: {score} earned {self.pot // len(self.current_players)} chips!"
+        prompt_text = f"Winner(s): {winner_names} with hand: {translate_score(score)} earned {self.pot // len(self.current_players)} chips!"
         text_surface = self.font.render(prompt_text, True, (255, 255, 255))
         screen.blit(text_surface, text_surface.get_rect(center=(500, 400)))
         pygame.display.flip()
@@ -331,3 +365,18 @@ def score_five_card_hand(cards):
             sorted_unique_ranks[3],
         )
     return (0, ranks)
+
+
+def translate_score(score):
+    score_names = {
+        8: "Straight Flush",
+        7: "Four of a Kind",
+        6: "Full House",
+        5: "Flush",
+        4: "Straight",
+        3: "Three of a Kind",
+        2: "Two Pair",
+        1: "One Pair",
+        0: "High Card",
+    }
+    return score_names.get(score[0], "Unknown Hand")
