@@ -2,11 +2,10 @@ import pygame
 import deck
 
 class BlackJackPlayer:
-    def __init__(self, name, chips, is_AI=False):
+    def __init__(self, name, chips):
         self.name = name
         self.chips = chips
         self.hand = []
-        self.is_AI = is_AI
 
     def receive_card(self, card):
         self.hand.append(card)
@@ -48,11 +47,7 @@ class BlackJackPlayer:
         for i, card in enumerate(self.hand):
             card_x = position[0] + i * 50
             card_y = position[1] + 40
-            if hide_first_card and i == 0:
-                pygame.draw.rect(surface, (0, 0, 0), (card_x, card_y, 40, 60))  # Draw a black rectangle for the hidden card
-            else:
-                card_image = pygame.image.load(f"images/cards/simple_{card.get()}.png")
-                surface.blit(card_image, (card_x, card_y))
+            card.draw(surface, (card_x, card_y))
         
     # AI Logic
 
@@ -76,7 +71,6 @@ class BlackJackPlayer:
         elif current_value >= 17:
             return "stand"
 
-        dealer_value = self.get_single_card_value(dealer_up_card)
         if dealer_up_card.rank == "a":
             dealer_value = 11
         else:
@@ -107,6 +101,7 @@ class BlackJackGame:
             self.human.receive_card(deck.draw_card())
             self.ai.receive_card(deck.draw_card())
             self.dealer.receive_card(deck.draw_card())
+        self.dealer.hand[0].hidden = True
 
     def reset_game(self, deck):
         self.state = "human_turn"
@@ -138,6 +133,7 @@ class BlackJackGame:
                     break
             self.state = "dealer_turn"
         elif self.state == "dealer_turn":
+            self.dealer.hand[0].hidden = False
             while self.dealer.get_hand_value() < 17:
                 self.dealer.receive_card(deck.draw_card())
             self.end_round()
@@ -182,13 +178,3 @@ class BlackJackGame:
         font = pygame.font.Font(None, 36)
         message_text = font.render(self.message, True, (255, 255, 255))
         screen.blit(message_text, (50, 700))
-
-                                                        
-
-
-
-        
-
-        
-
-        
