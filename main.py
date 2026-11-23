@@ -18,6 +18,8 @@ clock = pygame.time.Clock()
 
 async def main():
     running = True
+    current_game = "blackjack"
+
     poker_player = poker.PokerPlayer("Player 1", 1000)
     poker_player.receive_card(Card("A", "spades"))
     poker_player.receive_card(Card("K", "hearts"))
@@ -33,6 +35,14 @@ async def main():
     poker_game = poker.PokerGame(
         [poker_player, poker_player2, poker_player3, poker_player4]
     )
+
+    blackjack_player = poker.BlackJackPlayer("Player 1", 1000)
+    blackjack_ai = poker.BlackJackPlayer("AI", 1000)
+    blackjack_dealer = poker.BlackJackPlayer("Dealer", 1000)
+    blackjack_game = poker.BlackJackGame(blackjack_player, blackjack_ai, blackjack_dealer)
+    blackjack_game.deal(poker_game.deck)
+    
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
