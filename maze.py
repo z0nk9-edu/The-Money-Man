@@ -21,6 +21,7 @@ COLOR_PATH = (16, 14, 26)
 COLOR_WALL = (30, 18, 52)
 COLOR_CURRENT = (241, 196, 15)
 
+
 class MazeGenerator:
     def __init__(self, size=GRID_SIZE, extra_openings=EXTRA_OPENINGS):
         self.size = size
@@ -79,49 +80,15 @@ class MazeGenerator:
         for x, y in candidates[: self.extra_openings]:
             g[y][x] = PATH
 
-    def draw(self, surface):
+    def draw(self, screen):
         for y in range(self.size):
             for x in range(self.size):
                 color = COLOR_PATH if self.grid[y][x] == PATH else COLOR_WALL
-                pygame.draw.rect(surface, color, (x * TILE, y * TILE, TILE, TILE))
+                pygame.draw.rect(screen, color, (x * TILE, y * TILE, TILE, TILE))
         if not self.done:
             cx, cy = self.current
             pygame.draw.rect(
-                surface,
+                screen,
                 COLOR_CURRENT,
                 (cx * TILE + 3, cy * TILE + 3, TILE - 6, TILE - 6),
             )
-
-
-async def main():
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("The Money Man - Maze")
-    clock = pygame.time.Clock()
-    generator = MazeGenerator()
-    running = True
-
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_r:
-                    generator = MazeGenerator()
-
-        for _ in range(GEN_STEPS_PER_FRAME):
-            generator.step()
-
-        screen.fill(COLOR_BG)
-        generator.draw(screen)
-        pygame.display.flip()
-        clock.tick(FPS)
-        await asyncio.sleep(0)
-
-    pygame.quit()
-    sys.exit()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
