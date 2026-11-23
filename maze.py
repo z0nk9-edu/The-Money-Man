@@ -91,37 +91,3 @@ class MazeGenerator:
                 COLOR_CURRENT,
                 (cx * TILE + 3, cy * TILE + 3, TILE - 6, TILE - 6),
             )
-
-
-async def main():
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("The Money Man - Maze")
-    clock = pygame.time.Clock()
-    generator = MazeGenerator()
-    running = True
-
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_r:
-                    generator = MazeGenerator()
-
-        for _ in range(GEN_STEPS_PER_FRAME):
-            generator.step()
-
-        screen.fill(COLOR_BG)
-        generator.draw(screen)
-        pygame.display.flip()
-        clock.tick(FPS)
-        await asyncio.sleep(0)
-
-    pygame.quit()
-    sys.exit()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
