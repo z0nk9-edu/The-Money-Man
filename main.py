@@ -3,6 +3,7 @@ import random
 import math
 import asyncio
 import sys
+from maze import COLOR_BG, FPS, GEN_STEPS_PER_FRAME, MazeGenerator
 import poker
 import blackjack
 import maze
@@ -66,7 +67,35 @@ async def main():
         await asyncio.sleep(0)
     pygame.quit()
     sys.exit()
+    
+async def main():
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("The Money Man - Maze")
+    clock = pygame.time.Clock()
+    generator = MazeGenerator()
+    running = True
 
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_r:
+                    generator = MazeGenerator()
+
+        for _ in range(GEN_STEPS_PER_FRAME):
+            generator.step()
+
+        screen.fill(COLOR_BG)
+        generator.draw(screen)
+        pygame.display.flip()
+        clock.tick(FPS)
+        await asyncio.sleep(0)
+
+    pygame.quit()
+    sys.exit()
 
 def poker_start():
     player = poker.PokerPlayer(name, chips=chips)
