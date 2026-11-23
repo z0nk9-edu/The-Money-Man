@@ -2,15 +2,38 @@ import pygame
 
 
 class Card:
-    def __init__(self, rank, suit):
+    def __init__(self, rank, suit, hidden=False):
         self.rank = rank.lower()
         self.suit = suit.lower()[0]
+        self.hidden = hidden
 
     def get(self):
         return f"{self.suit}_{self.rank}"
 
+    def rank_value(self):
+        rank_order = {
+            "2": 2,
+            "3": 3,
+            "4": 4,
+            "5": 5,
+            "6": 6,
+            "7": 7,
+            "8": 8,
+            "9": 9,
+            "10": 10,
+            "j": 11,
+            "q": 12,
+            "k": 13,
+            "a": 14,
+        }
+        return rank_order[self.rank]
+
     def draw(self, screen, position):
-        card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
+        if self.hidden:
+            card_image = pygame.image.load("images/cards/simple_back.svg")
+        else:
+            card_image = pygame.image.load(f"images/cards/simple_{self.get()}.svg")
+        card_image = pygame.transform.scale(card_image, (100, 150))
         screen.blit(card_image, position)
 
 
@@ -18,6 +41,7 @@ class Deck:
     def __init__(self):
         self.cards = []
         self.build()
+        self.shuffle()
 
     def build(self):
         suits = ["hearts", "diamonds", "clubs", "spades"]
