@@ -26,26 +26,11 @@ def _draw_button(rect, text, color):
 
 async def main():
     running = True
-    poker_player = poker.PokerPlayer("Player 1", is_human=True)
-    poker_ai_1 = poker.PokerPlayer("AI Player 1", is_human=False)
-    poker_ai_2 = poker.PokerPlayer("AI Player 2", is_human=False)
-    players = [poker_player, poker_ai_1, poker_ai_2]
-    poker_game = poker.PokerGame(players)
     while running:
         screen.fill((0, 0, 0))
-        next_button_rect = pygame.Rect(WIDTH - 150, HEIGHT - 50, 140, 40)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if next_button_rect.collidepoint(event.pos):
-                    if all(player.hand == [] for player in players):
-                        poker_game.deal()
-                    else:
-                        await poker_game.betting_round(screen, clock)
-                        poker_game.draw(screen)
-        _draw_button(next_button_rect, "Next", (0, 128, 0))
-        poker_game.draw(screen)
         pygame.display.flip()
         clock.tick(60)
         await asyncio.sleep(0)
