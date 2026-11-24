@@ -40,6 +40,8 @@ async def main():
     while running:
         screen.fill((0, 0, 0))
         for event in pygame.event.get():
+            if isinstance(current_game, BlackjackGame):
+                current_game.manage_events(event)
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -59,9 +61,6 @@ async def main():
                             current_game.deal()
                         else:
                             await current_game.betting_round(screen, clock)
-                    if isinstance(current_game, BlackjackGame):
-                        current_game.update()
-                        print(f"Current state: {current_game.state}")
         if current_game is not None:
             _draw_button(next_button_rect, "Next", (0, 128, 0))
             current_game.draw(screen)
@@ -69,7 +68,8 @@ async def main():
                 for _ in range(6):
                     current_game.step()
             if isinstance(current_game, BlackjackGame):
-                current_game.manage_events(event)
+                current_game.update()
+
         else:
             _draw_button(poker_start_rect, "Poker", (0, 128, 0))
             _draw_button(blackjack_start_rect, "Blackjack", (0, 128, 0))

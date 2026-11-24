@@ -104,7 +104,7 @@ class BlackjackGame:
         self.dealer = dealer
         self.state = "human_turn"  # Possible states: "human_turn", "ai_turn", "dealer_turn", "game_over"
         self.message = "Press [H] to Hit or [S] to Stand"
-        self.current_bet = 100
+        self.current_bet = 10
         self.deck = deck.Deck()
 
     def deal(self):
@@ -131,7 +131,7 @@ class BlackjackGame:
             elif event.key == pygame.K_s:  # Stand
                 self.state = "ai_turn"
         elif self.state == "game_over" and event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:  # Reset
+            if event.key == pygame.K_SPACE:  # Reset
                 self.reset_game()
 
     def update(self):
@@ -185,7 +185,7 @@ class BlackjackGame:
         hide_dealer_card = self.state != "game_over"
         self.dealer.draw(screen, (400, 50), hide_first_card=hide_dealer_card)
         self.human.draw(screen, (50, 400))
-        self.ai.draw(screen, (400, 400))
+        self.ai.draw(screen, (500, 400))
 
         font = pygame.font.Font(None, 36)
         message_text = font.render(self.message, True, (255, 255, 255))
