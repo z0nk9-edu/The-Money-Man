@@ -18,7 +18,7 @@ class BlackjackPlayer:
         if card.rank in ["j", "q", "k"]:
             return 10
         elif card.rank == "a":
-            return 1  # default to 1
+            return 1
         else:
             return int(card.rank)
 
@@ -29,11 +29,11 @@ class BlackjackPlayer:
             value = self.get_single_card_value(card)
             if card.rank == "a":
                 aces += 1
-                total += 11  # Initially count Ace as 11
+                total += 11
             else:
                 total += value
         while total > 21 and aces:
-            total -= 10  # Convert an Ace from 11 to 1
+            total -= 10
             aces -= 1
         return total
 
@@ -58,8 +58,6 @@ class BlackjackPlayer:
             card_y = position[1] + 40
             card.draw(surface, (card_x, card_y))
 
-    # AI Logic
-
     def calculate_bust_probability(self, deck):
         current_value = self.get_hand_value()
         if current_value >= 21:
@@ -74,8 +72,7 @@ class BlackjackPlayer:
         current_value = self.get_hand_value()
         bust_probability = self.calculate_bust_probability(deck)
 
-        # Automatic Decisions
-        if current_value < 12:  # Guaranteed to not bust
+        if current_value < 12:
             return "hit"
         elif current_value >= 17:
             return "stand"
@@ -85,7 +82,6 @@ class BlackjackPlayer:
         else:
             dealer_value = self.get_single_card_value(dealer_up_card)
 
-        # Decision based on dealer's up card
         if dealer_value >= 7:
             risk_tolerance = 0.6
         else:
@@ -102,7 +98,7 @@ class BlackjackGame:
         self.human = human
         self.ai = ai
         self.dealer = dealer
-        self.state = "human_turn"  # Possible states: "human_turn", "ai_turn", "dealer_turn", "game_over"
+        self.state = "human_turn"
         self.message = "Press [H] to Hit or [S] to Stand"
         self.current_bet = 10
         self.deck = deck.Deck()
@@ -124,14 +120,14 @@ class BlackjackGame:
 
     def manage_events(self, event):
         if self.state == "human_turn" and event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_h:  # Hit
+            if event.key == pygame.K_h:
                 self.human.receive_card(self.deck.draw_card())
                 if self.human.get_hand_value() > 21:
                     self.state = "ai_turn"
-            elif event.key == pygame.K_s:  # Stand
+            elif event.key == pygame.K_s:
                 self.state = "ai_turn"
         elif self.state == "game_over" and event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:  # Reset
+            if event.key == pygame.K_SPACE:
                 self.reset_game()
 
     def update(self):
@@ -154,7 +150,7 @@ class BlackjackGame:
         dealer_value = self.dealer.get_hand_value()
         human_value = self.human.get_hand_value()
         ai_value = self.ai.get_hand_value()
-        # Human Outcomes
+
         if human_value > 21:
             self.human.chips -= self.current_bet
             self.message = "You Busted!"
@@ -167,7 +163,7 @@ class BlackjackGame:
         else:
             self.message = "It's a tie!"
 
-        # AI Outcomes
+
         if ai_value <= 21 and (dealer_value > 21 or ai_value > dealer_value):
             self.ai.chips += self.current_bet
             self.message += " | AI won!"
