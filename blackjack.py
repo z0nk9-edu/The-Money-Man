@@ -126,9 +126,8 @@ class BlackjackGame:
                     self.state = "ai_turn"
             elif event.key == pygame.K_s:
                 self.state = "ai_turn"
-        elif self.state == "game_over" and event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                self.reset_game()
+                self.update()
+                self.update()
 
     def update(self):
         if self.state == "ai_turn":
@@ -145,6 +144,8 @@ class BlackjackGame:
             while self.dealer.get_hand_value() < 17:
                 self.dealer.receive_card(self.deck.draw_card())
             self.end_round()
+        elif self.state == "game_over":
+            self.reset_game()
 
     def end_round(self):
         dealer_value = self.dealer.get_hand_value()
@@ -163,7 +164,6 @@ class BlackjackGame:
         else:
             self.message = "It's a tie!"
 
-
         if ai_value <= 21 and (dealer_value > 21 or ai_value > dealer_value):
             self.ai.chips += self.current_bet
             self.message += " | AI won!"
@@ -173,7 +173,7 @@ class BlackjackGame:
         else:
             self.message += " | AI tied!"
 
-        self.message += " | Press [SPACE] to replay game"
+        self.message += " | Press NEXT to replay game"
 
         self.state = "game_over"
 
