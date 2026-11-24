@@ -2,7 +2,7 @@ import pygame
 import deck
 
 
-class BlackJackPlayer:
+class BlackjackPlayer:
     def __init__(self, name, chips=100):
         self.name = name
         self.chips = chips
@@ -97,7 +97,7 @@ class BlackJackPlayer:
             return "stand"
 
 
-class BlackJackGame:
+class BlackjackGame:
     def __init__(self, human, ai, dealer):
         self.human = human
         self.ai = ai
@@ -122,6 +122,7 @@ class BlackJackGame:
         self.deal()
 
     def manage_events(self, event):
+        print("ye")
         if self.state == "human_turn" and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_h:  # Hit
                 self.human.receive_card(self.deck.draw_card())
@@ -137,7 +138,7 @@ class BlackJackGame:
         if self.state == "ai_turn":
             dealer_up_card = self.dealer.hand[1]
             while self.ai.get_hand_value() < 21:
-                decision = self.ai.get_ai_decision(self.deck, dealer_up_card)
+                decision = self.ai.get_ai_decision(dealer_up_card)
                 if decision == "hit":
                     self.ai.receive_card(self.deck.draw_card())
                 else:

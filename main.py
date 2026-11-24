@@ -3,10 +3,12 @@ import random
 import math
 import asyncio
 import sys
-import poker
-import blackjack
+from poker import PokerGame, PokerPlayer
+from blackjack import BlackjackGame, BlackjackPlayer
 import maze
 from deck import Card
+
+name = input("Enter your name: ")
 
 pygame.init()
 
@@ -18,7 +20,6 @@ pygame.display.set_caption("The Money Man")
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 chips = 100
-name = input("Enter your name: ")
 
 
 def _draw_button(rect, text, color):
@@ -39,6 +40,8 @@ async def main():
     while running:
         screen.fill((0, 0, 0))
         for event in pygame.event.get():
+            if isinstance(current_game, BlackjackGame):
+                current_game.manage_events(event)
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -47,19 +50,29 @@ async def main():
                         current_game = poker_start()
                     elif blackjack_start_rect.collidepoint(event.pos):
                         current_game = blackjack_start()
+                        current_game.deal()
                     elif leave_button_rect.collidepoint(event.pos):
                         current_game = maze.MazeGenerator()
                 if leave_button_rect.collidepoint(event.pos):
                     current_game = None
                 if next_button_rect.collidepoint(event.pos):
-                    if isinstance(current_game, poker.PokerGame):
+                    if isinstance(current_game, PokerGame):
                         if all(player.hand == [] for player in current_game.players):
                             current_game.deal()
                         else:
                             await current_game.betting_round(screen, clock)
-                            current_game.draw(screen)
+                    if isinstance(current_game, BlackjackGame):
+                        current_game.update()
+                        print(f"Current state: {current_game.state}")
         if current_game is not None:
             _draw_button(next_button_rect, "Next", (0, 128, 0))
+            current_game.draw(screen)
+            if isinstance(current_game, maze.MazeGenerator):
+                for _ in range(6):
+                    current_game.step()
+        else:
+            _draw_button(poker_start_rect, "Poker", (0, 128, 0))
+            _draw_button(blackjack_start_rect, "Blackjack", (0, 128, 0))
         _draw_button(leave_button_rect, "Leave", (128, 0, 0))
         pygame.display.flip()
         clock.tick(60)
@@ -69,18 +82,18 @@ async def main():
 
 
 def poker_start():
-    player = poker.PokerPlayer(name, chips=chips)
-    ai_player_1 = poker.PokerPlayer("AI player 1", is_human=False)
-    ai_player_2 = poker.PokerPlayer("AI player 2", is_human=False)
+    player = PokerPlayer(name, chips=chips)
+    ai_player_1 = PokerPlayer("AI player 1", is_human=False)
+    ai_player_2 = PokerPlayer("AI player 2", is_human=False)
     players = [player, ai_player_1, ai_player_2]
-    return poker.PokerGame(players)
+    return PokerGame(players)
 
 
 def blackjack_start():
-    player = blackjack.BlackjackPlayer(name, chips=chips)
-    ai_player = blackjack.BlackjackPlayer("AI player")
-    dealer = blackjack.BlackjackPlayer("Dealer")
-    return blackjack.BlackjackGame(player, ai_player, dealer)
+    player = BlackjackPlayer(name, chips=chips)
+    ai_player = BlackjackPlayer("AI player")
+    dealer = BlackjackPlayer("Dealer")
+    return BlackjackGame(player, ai_player, dealer)
 
 
 asyncio.run(main())

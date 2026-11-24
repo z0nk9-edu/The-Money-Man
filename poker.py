@@ -4,7 +4,6 @@ import sys
 from itertools import combinations
 from collections import Counter
 from deck import Card, Deck
-from main import _draw_button
 
 
 class PokerPlayer:
@@ -79,9 +78,9 @@ class PokerPlayer:
         call_label = "Check" if min_bet == 0 else f"Call {min_bet} chips"
 
         while True:
-            _draw_button(call_rect, call_label, (0, 128, 0))
-            _draw_button(fold_rect, "Fold", (128, 0, 0))
-            _draw_button(raise_rect, "Raise", (0, 128, 128))
+            _draw_button(screen, call_rect, call_label, (0, 128, 0))
+            _draw_button(screen, fold_rect, "Fold", (128, 0, 0))
+            _draw_button(screen, raise_rect, "Raise", (0, 128, 128))
             self.draw(screen, tuple(x / 2 for x in screen.get_size()))
 
             for event in pygame.event.get():
@@ -375,3 +374,11 @@ def translate_score(score):
         0: "High Card",
     }
     return score_names.get(score[0], "Unknown Hand")
+
+
+def _draw_button(screen, rect, text, color):
+    font = pygame.font.Font(None, 36)
+    pygame.draw.rect(screen, color, rect)
+    text_surface = font.render(text, True, (255, 255, 255))
+    text_rect = text_surface.get_rect(center=rect.center)
+    screen.blit(text_surface, text_rect)
