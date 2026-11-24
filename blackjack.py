@@ -60,19 +60,19 @@ class BlackjackPlayer:
 
     # AI Logic
 
-    def calculate_bust_probability(self):
+    def calculate_bust_probability(self, deck):
         current_value = self.get_hand_value()
         if current_value >= 21:
             return 1.0
         bust_count = 0
-        for card in self.deck.cards:
+        for card in deck.cards:
             if self.get_hand_value() + self.get_single_card_value(card) > 21:
                 bust_count += 1
-        return bust_count / len(self.deck.cards)
+        return bust_count / len(deck.cards)
 
-    def get_ai_decision(self, dealer_up_card):
+    def get_ai_decision(self, dealer_up_card, deck):
         current_value = self.get_hand_value()
-        bust_probability = self.calculate_bust_probability()
+        bust_probability = self.calculate_bust_probability(deck)
 
         # Automatic Decisions
         if current_value < 12:  # Guaranteed to not bust
@@ -83,7 +83,7 @@ class BlackjackPlayer:
         if dealer_up_card.rank == "a":
             dealer_value = 11
         else:
-            dealer_value = dealer_up_card.get_single_card_value(dealer_up_card)
+            dealer_value = self.get_single_card_value(dealer_up_card)
 
         # Decision based on dealer's up card
         if dealer_value >= 7:
@@ -119,10 +119,10 @@ class BlackjackGame:
         self.message = "Press [H] to Hit or [S] to Stand"
         for player in [self.human, self.ai, self.dealer]:
             player.reset_hand()
+        self.deck = deck.Deck()
         self.deal()
 
     def manage_events(self, event):
-        print("ye")
         if self.state == "human_turn" and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_h:  # Hit
                 self.human.receive_card(self.deck.draw_card())
@@ -138,7 +138,7 @@ class BlackjackGame:
         if self.state == "ai_turn":
             dealer_up_card = self.dealer.hand[1]
             while self.ai.get_hand_value() < 21:
-                decision = self.ai.get_ai_decision(dealer_up_card)
+                decision = self.ai.get_ai_decision(dealer_up_card, self.deck)
                 if decision == "hit":
                     self.ai.receive_card(self.deck.draw_card())
                 else:

@@ -40,8 +40,6 @@ async def main():
     while running:
         screen.fill((0, 0, 0))
         for event in pygame.event.get():
-            if isinstance(current_game, BlackjackGame):
-                current_game.manage_events(event)
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -70,6 +68,8 @@ async def main():
             if isinstance(current_game, maze.MazeGenerator):
                 for _ in range(6):
                     current_game.step()
+            if isinstance(current_game, BlackjackGame):
+                current_game.manage_events(event)
         else:
             _draw_button(poker_start_rect, "Poker", (0, 128, 0))
             _draw_button(blackjack_start_rect, "Blackjack", (0, 128, 0))
