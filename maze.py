@@ -36,7 +36,6 @@ class MazeGenerator:
         self.player = START
 
     def move_player(self, dx, dy):
-        """Move the player one tile if the maze is finished and the tile is open."""
         if not self.done:
             return
         nx, ny = self.player[0] + dx, self.player[1] + dy

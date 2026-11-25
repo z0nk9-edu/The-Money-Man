@@ -8,12 +8,21 @@ from blackjack import BlackjackGame, BlackjackPlayer
 import maze
 from deck import Card
 
-name = input("Enter your name: ")
-
 pygame.init()
 
 WIDTH = 1000
 HEIGHT = 800
+GOAL = 200
+MOVE_KEYS = {
+    pygame.K_UP: (0, -1),
+    pygame.K_w: (0, -1),
+    pygame.K_DOWN: (0, 1),
+    pygame.K_s: (0, 1),
+    pygame.K_LEFT: (-1, 0),
+    pygame.K_a: (-1, 0),
+    pygame.K_RIGHT: (1, 0),
+    pygame.K_d: (1, 0),
+}
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("The Money Man")
@@ -29,17 +38,47 @@ def _draw_button(rect, text, color):
     screen.blit(text_surface, text_rect)
 
 
-GOAL = 200
-MOVE_KEYS = {
-    pygame.K_UP: (0, -1),
-    pygame.K_w: (0, -1),
-    pygame.K_DOWN: (0, 1),
-    pygame.K_s: (0, 1),
-    pygame.K_LEFT: (-1, 0),
-    pygame.K_a: (-1, 0),
-    pygame.K_RIGHT: (1, 0),
-    pygame.K_d: (1, 0),
-}
+def get_player_name():
+    """Display a text input box to get the player's name."""
+    input_box = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 25, 300, 50)
+    color_inactive = pygame.Color("lightskyblue3")
+    color_active = pygame.Color("dodgerblue2")
+    color = color_inactive
+    active = False
+    text = ""
+    done = False
+
+    while not done:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # Toggle the active state if the input box is clicked
+                if input_box.collidepoint(event.pos):
+                    active = not active
+                else:
+                    active = False
+                color = color_active if active else color_inactive
+            if event.type == pygame.KEYDOWN:
+                if active:
+                    if event.key == pygame.K_RETURN:
+                        done = True
+                    elif event.key == pygame.K_BACKSPACE:
+                        text = text[:-1]
+                    else:
+                        text += event.unicode
+
+        screen.fill((0, 0, 0))
+        _draw_text("Enter your name:", (WIDTH // 2 - 100, HEIGHT // 2 - 100))
+        pygame.draw.rect(screen, color, input_box, 2)
+        text_surface = font.render(text, True, (255, 255, 255))
+        screen.blit(text_surface, (input_box.x + 5, input_box.y + 5))
+        input_box.w = max(300, text_surface.get_width() + 10)
+        pygame.display.flip()
+        clock.tick(30)
+
+    return text
 
 
 def _human_chips(game):
@@ -57,9 +96,10 @@ def _draw_text(text, pos, color=(255, 255, 255)):
 
 async def main():
     global chips
+    name = get_player_name()  # Get the player's name using the new input method
     running = True
     current_game = None
-    result = None  
+    result = None
     poker_start_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 - 25, 200, 50)
     blackjack_start_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50)
     next_button_rect = pygame.Rect(WIDTH - 300, HEIGHT - 50, 140, 40)
@@ -95,9 +135,9 @@ async def main():
                         current_game = None
                 elif current_game is None:
                     if poker_start_rect.collidepoint(event.pos):
-                        current_game = poker_start()
+                        current_game = poker_start(name)
                     elif blackjack_start_rect.collidepoint(event.pos):
-                        current_game = blackjack_start()
+                        current_game = blackjack_start(name)
                         current_game.deal()
                 elif next_button_rect.collidepoint(event.pos):
                     if isinstance(current_game, PokerGame):
@@ -123,7 +163,9 @@ async def main():
             else:
                 won = chips >= GOAL
                 _draw_text("Home!", (panel_x, 110))
-                _draw_text(result, (panel_x, 145), (46, 204, 113) if won else (231, 76, 60))
+                _draw_text(
+                    result, (panel_x, 145), (46, 204, 113) if won else (231, 76, 60)
+                )
                 _draw_button(leave_button_rect, "Restart", (128, 0, 0))
         elif current_game is not None:
             _draw_button(next_button_rect, "Next", (0, 128, 0))
@@ -145,7 +187,7 @@ async def main():
     sys.exit()
 
 
-def poker_start():
+def poker_start(name):
     player = PokerPlayer(name, chips=chips)
     ai_player_1 = PokerPlayer("AI player 1", is_human=False)
     ai_player_2 = PokerPlayer("AI player 2", is_human=False)
@@ -153,7 +195,7 @@ def poker_start():
     return PokerGame(players)
 
 
-def blackjack_start():
+def blackjack_start(name):
     player = BlackjackPlayer(name, chips=chips)
     ai_player = BlackjackPlayer("AI player")
     dealer = BlackjackPlayer("Dealer")
