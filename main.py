@@ -53,6 +53,7 @@ async def main():
                         current_game.deal()
                     elif leave_button_rect.collidepoint(event.pos):
                         current_game = maze.MazeGenerator()
+                        print("Maze generator started")
                 if leave_button_rect.collidepoint(event.pos):
                     current_game = None
                 if next_button_rect.collidepoint(event.pos):

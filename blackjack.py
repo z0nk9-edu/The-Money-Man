@@ -41,7 +41,7 @@ class BlackjackPlayer:
         font = pygame.font.Font(None, 36)
         if hide_first_card:
             text = font.render(
-                f"{self.name}: {self.chips} chips (Total Value: ?)",
+                f"{self.name}: (Total Value: ?)",
                 True,
                 (255, 255, 255),
             )
