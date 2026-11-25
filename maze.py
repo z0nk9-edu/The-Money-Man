@@ -20,6 +20,8 @@ COLOR_BG = (8, 6, 14)
 COLOR_PATH = (16, 14, 26)
 COLOR_WALL = (30, 18, 52)
 COLOR_CURRENT = (241, 196, 15)
+COLOR_PLAYER = (46, 204, 113)
+COLOR_HOME = (52, 152, 219)
 
 
 class MazeGenerator:
@@ -31,6 +33,17 @@ class MazeGenerator:
         self.stack = [START]
         self.current = START
         self.done = False
+        self.player = START
+
+    def move_player(self, dx, dy):
+        if not self.done:
+            return
+        nx, ny = self.player[0] + dx, self.player[1] + dy
+        if 0 <= nx < self.size and 0 <= ny < self.size and self.grid[ny][nx] == PATH:
+            self.player = (nx, ny)
+
+    def reached_home(self):
+        return self.done and self.player == HOME
 
     def unvisited_neighbors(self, x, y):
         result = []
@@ -85,7 +98,17 @@ class MazeGenerator:
             for x in range(self.size):
                 color = COLOR_PATH if self.grid[y][x] == PATH else COLOR_WALL
                 pygame.draw.rect(screen, color, (x * TILE, y * TILE, TILE, TILE))
-        if not self.done:
+        hx, hy = HOME
+        pygame.draw.rect(screen, COLOR_HOME, (hx * TILE, hy * TILE, TILE, TILE))
+        if self.done:
+            px, py = self.player
+            pygame.draw.circle(
+                screen,
+                COLOR_PLAYER,
+                (px * TILE + TILE // 2, py * TILE + TILE // 2),
+                TILE // 2 - 3,
+            )
+        else:
             cx, cy = self.current
             pygame.draw.rect(
                 screen,
