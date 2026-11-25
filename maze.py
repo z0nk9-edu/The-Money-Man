@@ -1,7 +1,6 @@
 import pygame
 import random
-import asyncio
-import sys
+from collections import defaultdict
 
 pygame.init()
 
@@ -24,74 +23,165 @@ COLOR_PLAYER = (46, 204, 113)
 COLOR_HOME = (52, 152, 219)
 
 
-class MazeGenerator:
-    def __init__(self, size=GRID_SIZE, extra_openings=EXTRA_OPENINGS):
+class Maze:
+    def __init__(self, chips, size=GRID_SIZE):
         self.size = size
-        self.extra_openings = extra_openings
         self.grid = [[WALL] * size for _ in range(size)]
         self.grid[START[1]][START[0]] = PATH
         self.stack = [START]
         self.current = START
         self.done = False
-        self.player = START
 
-    def move_player(self, dx, dy):
-        if not self.done:
-            return
-        nx, ny = self.player[0] + dx, self.player[1] + dy
-        if 0 <= nx < self.size and 0 <= ny < self.size and self.grid[ny][nx] == PATH:
-            self.player = (nx, ny)
+        self.player = MazePlayer(START, self, chips)
 
-    def reached_home(self):
-        return self.done and self.player == HOME
-
-    def unvisited_neighbors(self, x, y):
-        result = []
-        for dx, dy in DIRECTIONS:
-            nx, ny = x + dx * 2, y + dy * 2
-            if 0 < nx < self.size - 1 and 0 < ny < self.size - 1:
-                if self.grid[ny][nx] == WALL:
-                    result.append((nx, ny))
-        return result
+        self.ais = []
+        self.ai_directions = [random.choice(DIRECTIONS) for _ in range(3)]
+        self.ai_memory = [defaultdict(int) for _ in range(3)]
 
     def step(self):
         if self.done:
             return
-        if not self.stack:
-            self.add_loops()
-            self.done = True
-            return
 
-        x, y = self.stack[-1]
-        self.current = (x, y)
-        neighbors = self.unvisited_neighbors(x, y)
-        if neighbors:
-            nx, ny = random.choice(neighbors)
-            self.grid[(y + ny) // 2][(x + nx) // 2] = PATH
-            self.grid[ny][nx] = PATH
-            self.stack.append((nx, ny))
+        if self.stack:
+            x, y = self.current
+            neighbors = [
+                (x + dx * 2, y + dy * 2)
+                for dx, dy in DIRECTIONS
+                if 0 <= x + dx * 2 < self.size
+                and 0 <= y + dy * 2 < self.size
+                and self.grid[y + dy * 2][x + dx * 2] == WALL
+            ]
+            if neighbors:
+                nx, ny = random.choice(neighbors)
+                self.grid[ny][nx] = PATH
+                self.grid[y + (ny - y) // 2][x + (nx - x) // 2] = PATH
+                self.stack.append((nx, ny))
+                self.current = (nx, ny)
+            else:
+                self.current = self.stack.pop()
         else:
-            self.stack.pop()
+            self.done = True
+            self.add_extra_openings()
+            for _ in range(3):
+                cell = (random.randrange(1, self.size), random.randrange(1, self.size))
+                while (
+                    self.grid[cell[1]][cell[0]] == PATH or cell == START or cell == HOME
+                ):
+                    cell = (
+                        random.randrange(1, self.size),
+                        random.randrange(1, self.size),
+                    )
+                self.ais.append(MazePlayer(cell, self))
 
-    def generate(self):
-        while not self.done:
-            self.step()
-        return self.grid
+    def add_extra_openings(self):
+        for _ in range(self.size**2 // 6):
+            x, y = random.randrange(1, self.size), random.randrange(1, self.size)
+            if self.grid[y][x] == WALL:
+                self.grid[y][x] = PATH
 
-    def add_loops(self):
-        g = self.grid
-        candidates = []
-        for y in range(1, self.size - 1):
-            for x in range(1, self.size - 1):
-                if g[y][x] != WALL:
-                    continue
-                horizontal = g[y][x - 1] == PATH and g[y][x + 1] == PATH
-                vertical = g[y - 1][x] == PATH and g[y + 1][x] == PATH
-                if horizontal != vertical:
-                    candidates.append((x, y))
-        random.shuffle(candidates)
-        for x, y in candidates[: self.extra_openings]:
-            g[y][x] = PATH
+    def move_player(self, dx, dy):
+        if not self.done:
+            return
+        self.player.move(dx, dy)
+
+    def move_ais(self):
+        for i, ai in enumerate(self.ais):
+            visible = False
+            for direction in DIRECTIONS:
+                for step in range(1, 11):
+                    check_x = ai.position[0] + direction[0] * step
+                    check_y = ai.position[1] + direction[1] * step
+                    if not self.valid_move(check_x, check_y):
+                        break
+                    if (check_x, check_y) == self.player.position:
+                        visible = True
+                        break
+                if visible:
+                    break
+
+            if visible:
+                self.ai_memory[i][self.player.position] += 1
+
+            valid_dirs = [
+                d
+                for d in DIRECTIONS
+                if self.valid_move(ai.position[0] + d[0], ai.position[1] + d[1])
+            ]
+            is_crossroads = len(valid_dirs) > 2
+
+            current_dir = self.ai_directions[i]
+            next_pos = (
+                ai.position[0] + current_dir[0],
+                ai.position[1] + current_dir[1],
+            )
+            is_path_blocked = not self.valid_move(next_pos[0], next_pos[1])
+
+            chosen_dir = current_dir
+
+            if visible:
+                dx = self.player.position[0] - ai.position[0]
+                dy = self.player.position[1] - ai.position[1]
+                if abs(dx) > abs(dy):
+                    chosen_dir = (1 if dx > 0 else -1, 0)
+                else:
+                    chosen_dir = (0, 1 if dy > 0 else -1)
+                if not self.valid_move(
+                    ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
+                ):
+                    if valid_dirs:
+                        chosen_dir = random.choice(valid_dirs)
+            elif self.ai_memory[i] and (is_crossroads or is_path_blocked):
+                likely_position = max(self.ai_memory[i], key=self.ai_memory[i].get)
+                dx = likely_position[0] - ai.position[0]
+                dy = likely_position[1] - ai.position[1]
+                if abs(dx) > abs(dy):
+                    chosen_dir = (1 if dx > 0 else -1, 0)
+                else:
+                    chosen_dir = (0, 1 if dy > 0 else -1)
+                if not self.valid_move(
+                    ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
+                ):
+                    if valid_dirs:
+                        chosen_dir = random.choice(valid_dirs)
+            elif is_path_blocked or is_crossroads:
+                non_reverse_dirs = [
+                    d
+                    for d in valid_dirs
+                    if (d[0] != -current_dir[0] or d[1] != -current_dir[1])
+                ]
+                if non_reverse_dirs:
+                    chosen_dir = random.choice(non_reverse_dirs)
+                elif valid_dirs:
+                    chosen_dir = random.choice(valid_dirs)
+            else:
+                if self.valid_move(
+                    ai.position[0] + current_dir[0], ai.position[1] + current_dir[1]
+                ):
+                    chosen_dir = current_dir
+                elif valid_dirs:
+                    chosen_dir = random.choice(valid_dirs)
+
+            self.ai_directions[i] = chosen_dir
+            ai.move(chosen_dir[0], chosen_dir[1])
+
+            if ai.position == self.player.position:
+                self.player.lose_chips(50)
+
+    def valid_move(self, x, y):
+        return 0 <= x < self.size and 0 <= y < self.size and self.grid[y][x] == PATH
+
+    def player_visible(self):
+        ais = []
+        for ai in self.ais:
+            for direction in DIRECTIONS:
+                for step in range(1, 6):
+                    check_x = ai.position[0] + direction[0] * step
+                    check_y = ai.position[1] + direction[1] * step
+                    if not self.valid_move(check_x, check_y):
+                        break
+                    if (check_x, check_y) == self.player.position:
+                        ais.append((self.ais.index(ai), direction))
+        return ais
 
     def draw(self, screen):
         for y in range(self.size):
@@ -101,13 +191,21 @@ class MazeGenerator:
         hx, hy = HOME
         pygame.draw.rect(screen, COLOR_HOME, (hx * TILE, hy * TILE, TILE, TILE))
         if self.done:
-            px, py = self.player
+            px, py = self.player.position
             pygame.draw.circle(
                 screen,
                 COLOR_PLAYER,
                 (px * TILE + TILE // 2, py * TILE + TILE // 2),
                 TILE // 2 - 3,
             )
+            for ai in self.ais:
+                ax, ay = ai.position
+                pygame.draw.circle(
+                    screen,
+                    (255, 0, 0),
+                    (ax * TILE + TILE // 2, ay * TILE + TILE // 2),
+                    TILE // 2 - 3,
+                )
         else:
             cx, cy = self.current
             pygame.draw.rect(
@@ -115,3 +213,21 @@ class MazeGenerator:
                 COLOR_CURRENT,
                 (cx * TILE + 3, cy * TILE + 3, TILE - 6, TILE - 6),
             )
+
+
+class MazePlayer:
+    def __init__(self, position, maze, chips=100):
+        self.position = position
+        self.maze = maze
+        self.chips = chips
+
+    def move(self, dx, dy):
+        nx, ny = self.position[0] + dx, self.position[1] + dy
+        if self.maze.valid_move(nx, ny):
+            self.position = (nx, ny)
+
+    def reached_home(self):
+        return self.position == HOME
+
+    def lose_chips(self, amount):
+        self.chips = max(0, self.chips - amount)

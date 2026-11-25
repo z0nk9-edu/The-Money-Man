@@ -38,13 +38,9 @@ def _draw_button(rect, text, color):
     screen.blit(text_surface, text_rect)
 
 
-def get_player_name():
-    """Display a text input box to get the player's name."""
+async def get_player_name():
     input_box = pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 25, 300, 50)
-    color_inactive = pygame.Color("lightskyblue3")
-    color_active = pygame.Color("dodgerblue2")
-    color = color_inactive
-    active = False
+    color = pygame.Color("lightskyblue3")
     text = ""
     done = False
 
@@ -53,21 +49,14 @@ def get_player_name():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                # Toggle the active state if the input box is clicked
-                if input_box.collidepoint(event.pos):
-                    active = not active
-                else:
-                    active = False
-                color = color_active if active else color_inactive
+
             if event.type == pygame.KEYDOWN:
-                if active:
-                    if event.key == pygame.K_RETURN:
-                        done = True
-                    elif event.key == pygame.K_BACKSPACE:
-                        text = text[:-1]
-                    else:
-                        text += event.unicode
+                if event.key == pygame.K_RETURN:
+                    done = True
+                elif event.key == pygame.K_BACKSPACE:
+                    text = text[:-1]
+                else:
+                    text += event.unicode
 
         screen.fill((0, 0, 0))
         _draw_text("Enter your name:", (WIDTH // 2 - 100, HEIGHT // 2 - 100))
@@ -77,12 +66,12 @@ def get_player_name():
         input_box.w = max(300, text_surface.get_width() + 10)
         pygame.display.flip()
         clock.tick(30)
+        await asyncio.sleep(0)
 
     return text
 
 
 def _human_chips(game):
-    """Return the human player's chip count for a casino game."""
     if isinstance(game, BlackjackGame):
         return game.human.chips
     if isinstance(game, PokerGame):
@@ -96,7 +85,7 @@ def _draw_text(text, pos, color=(255, 255, 255)):
 
 async def main():
     global chips
-    name = get_player_name()  # Get the player's name using the new input method
+    name = await get_player_name()
     running = True
     current_game = None
     result = None
@@ -104,6 +93,7 @@ async def main():
     blackjack_start_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50)
     next_button_rect = pygame.Rect(WIDTH - 300, HEIGHT - 50, 140, 40)
     leave_button_rect = pygame.Rect(WIDTH - 150, HEIGHT - 50, 140, 40)
+    maze_counter = 0
 
     while running:
         screen.fill((0, 0, 0))
@@ -113,19 +103,20 @@ async def main():
             if isinstance(current_game, BlackjackGame):
                 current_game.manage_events(event)
             if (
-                isinstance(current_game, maze.MazeGenerator)
+                isinstance(current_game, maze.Maze)
                 and result is None
                 and event.type == pygame.KEYDOWN
                 and event.key in MOVE_KEYS
             ):
                 current_game.move_player(*MOVE_KEYS[event.key])
-                if current_game.reached_home():
+
+                if current_game.player.reached_home():
                     result = "You win!" if chips >= GOAL else "You lose!"
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if leave_button_rect.collidepoint(event.pos):
                     if current_game is None:
-                        current_game = maze.MazeGenerator()
-                    elif isinstance(current_game, maze.MazeGenerator):
+                        current_game = maze.Maze(chips)
+                    elif isinstance(current_game, maze.Maze):
                         if result is not None:
                             chips = 100
                             result = None
@@ -148,9 +139,18 @@ async def main():
                     if isinstance(current_game, BlackjackGame):
                         current_game.update()
 
-        if isinstance(current_game, maze.MazeGenerator):
+        if isinstance(current_game, maze.Maze):
+            maze_counter += 1
+            chips = current_game.player.chips
             for _ in range(maze.GEN_STEPS_PER_FRAME):
                 current_game.step()
+
+            if chips == 0:
+                result = "Caught by AI! You lose!"
+
+            if maze_counter % 30 == 0:
+                current_game.move_ais()
+
             current_game.draw(screen)
             panel_x = maze.WIDTH + 10
             _draw_text(f"${chips}", (panel_x, 20), (241, 196, 15))
