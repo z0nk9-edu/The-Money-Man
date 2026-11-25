@@ -31,12 +31,13 @@ class Maze:
         self.stack = [START]
         self.current = START
         self.done = False
-
         self.player = MazePlayer(START, self, chips)
-
         self.ais = []
         self.ai_directions = [random.choice(DIRECTIONS) for _ in range(3)]
         self.ai_memory = [defaultdict(int) for _ in range(3)]
+        self.ai_chasing = []
+        self.ai_timers = []
+        self.ai_stun_timers = []
 
     def step(self):
         if self.done:
@@ -72,6 +73,9 @@ class Maze:
                         random.randrange(1, self.size),
                     )
                 self.ais.append(MazePlayer(cell, self))
+            self.ai_chasing = [False] * len(self.ais)
+            self.ai_timers = [0] * len(self.ais)
+            self.ai_stun_timers = [0] * len(self.ais)
 
     def add_extra_openings(self):
         for _ in range(self.size**2 // 6):
@@ -84,8 +88,22 @@ class Maze:
             return
         self.player.move(dx, dy)
 
-    def move_ais(self):
+    def update_ais(self):
+        if not self.done:
+            return
+        if len(self.ai_timers) != len(self.ais):
+            self.ai_timers = [0] * len(self.ais)
+        if len(self.ai_chasing) != len(self.ais):
+            self.ai_chasing = [False] * len(self.ais)
+        if len(self.ai_stun_timers) != len(self.ais):
+            self.ai_stun_timers = [0] * len(self.ais)
+
         for i, ai in enumerate(self.ais):
+            # If the AI is stunned after catching the player, skip its turn and decrement timer
+            if self.ai_stun_timers[i] > 0:
+                self.ai_stun_timers[i] -= 1
+                continue
+
             visible = False
             for direction in DIRECTIONS:
                 for step in range(1, 11):
@@ -99,73 +117,84 @@ class Maze:
                 if visible:
                     break
 
+            self.ai_chasing[i] = visible
             if visible:
                 self.ai_memory[i][self.player.position] += 1
 
-            valid_dirs = [
-                d
-                for d in DIRECTIONS
-                if self.valid_move(ai.position[0] + d[0], ai.position[1] + d[1])
-            ]
-            is_crossroads = len(valid_dirs) > 2
+            interval = 15 if visible else 30
+            self.ai_timers[i] += 1
 
-            current_dir = self.ai_directions[i]
-            next_pos = (
-                ai.position[0] + current_dir[0],
-                ai.position[1] + current_dir[1],
-            )
-            is_path_blocked = not self.valid_move(next_pos[0], next_pos[1])
+            if self.ai_timers[i] >= interval:
+                self.ai_timers[i] = 0
+                self._move_single_ai(i, visible)
 
-            chosen_dir = current_dir
+    def _move_single_ai(self, i, visible):
+        ai = self.ais[i]
+        valid_dirs = [
+            d
+            for d in DIRECTIONS
+            if self.valid_move(ai.position[0] + d[0], ai.position[1] + d[1])
+        ]
+        is_crossroads = len(valid_dirs) > 2
 
-            if visible:
-                dx = self.player.position[0] - ai.position[0]
-                dy = self.player.position[1] - ai.position[1]
-                if abs(dx) > abs(dy):
-                    chosen_dir = (1 if dx > 0 else -1, 0)
-                else:
-                    chosen_dir = (0, 1 if dy > 0 else -1)
-                if not self.valid_move(
-                    ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
-                ):
-                    if valid_dirs:
-                        chosen_dir = random.choice(valid_dirs)
-            elif self.ai_memory[i] and (is_crossroads or is_path_blocked):
-                likely_position = max(self.ai_memory[i], key=self.ai_memory[i].get)
-                dx = likely_position[0] - ai.position[0]
-                dy = likely_position[1] - ai.position[1]
-                if abs(dx) > abs(dy):
-                    chosen_dir = (1 if dx > 0 else -1, 0)
-                else:
-                    chosen_dir = (0, 1 if dy > 0 else -1)
-                if not self.valid_move(
-                    ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
-                ):
-                    if valid_dirs:
-                        chosen_dir = random.choice(valid_dirs)
-            elif is_path_blocked or is_crossroads:
-                non_reverse_dirs = [
-                    d
-                    for d in valid_dirs
-                    if (d[0] != -current_dir[0] or d[1] != -current_dir[1])
-                ]
-                if non_reverse_dirs:
-                    chosen_dir = random.choice(non_reverse_dirs)
-                elif valid_dirs:
-                    chosen_dir = random.choice(valid_dirs)
+        current_dir = self.ai_directions[i]
+        next_pos = (
+            ai.position[0] + current_dir[0],
+            ai.position[1] + current_dir[1],
+        )
+        is_path_blocked = not self.valid_move(next_pos[0], next_pos[1])
+
+        chosen_dir = current_dir
+
+        if visible:
+            dx = self.player.position[0] - ai.position[0]
+            dy = self.player.position[1] - ai.position[1]
+            if abs(dx) > abs(dy):
+                chosen_dir = (1 if dx > 0 else -1, 0)
             else:
-                if self.valid_move(
-                    ai.position[0] + current_dir[0], ai.position[1] + current_dir[1]
-                ):
-                    chosen_dir = current_dir
-                elif valid_dirs:
+                chosen_dir = (0, 1 if dy > 0 else -1)
+            if not self.valid_move(
+                ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
+            ):
+                if valid_dirs:
                     chosen_dir = random.choice(valid_dirs)
+        elif self.ai_memory[i] and (is_crossroads or is_path_blocked):
+            likely_position = max(self.ai_memory[i], key=self.ai_memory[i].get)
+            dx = likely_position[0] - ai.position[0]
+            dy = likely_position[1] - ai.position[1]
+            if abs(dx) > abs(dy):
+                chosen_dir = (1 if dx > 0 else -1, 0)
+            else:
+                chosen_dir = (0, 1 if dy > 0 else -1)
+            if not self.valid_move(
+                ai.position[0] + chosen_dir[0], ai.position[1] + chosen_dir[1]
+            ):
+                if valid_dirs:
+                    chosen_dir = random.choice(valid_dirs)
+        elif is_path_blocked or is_crossroads:
+            non_reverse_dirs = [
+                d
+                for d in valid_dirs
+                if (d[0] != -current_dir[0] or d[1] != -current_dir[1])
+            ]
+            if non_reverse_dirs:
+                chosen_dir = random.choice(non_reverse_dirs)
+            elif valid_dirs:
+                chosen_dir = random.choice(valid_dirs)
+        else:
+            if self.valid_move(
+                ai.position[0] + current_dir[0], ai.position[1] + current_dir[1]
+            ):
+                chosen_dir = current_dir
+            elif valid_dirs:
+                chosen_dir = random.choice(valid_dirs)
 
-            self.ai_directions[i] = chosen_dir
-            ai.move(chosen_dir[0], chosen_dir[1])
+        self.ai_directions[i] = chosen_dir
+        ai.move(chosen_dir[0], chosen_dir[1])
 
-            if ai.position == self.player.position:
-                self.player.lose_chips(50)
+        if ai.position == self.player.position:
+            self.player.lose_chips(50)
+            self.ai_stun_timers[i] = 120
 
     def valid_move(self, x, y):
         return 0 <= x < self.size and 0 <= y < self.size and self.grid[y][x] == PATH
@@ -198,11 +227,16 @@ class Maze:
                 (px * TILE + TILE // 2, py * TILE + TILE // 2),
                 TILE // 2 - 3,
             )
-            for ai in self.ais:
+            for i, ai in enumerate(self.ais):
                 ax, ay = ai.position
+                ai_color = (
+                    (255, 0, 0)
+                    if (i < len(self.ai_chasing) and self.ai_chasing[i])
+                    else (255, 165, 0)
+                )
                 pygame.draw.circle(
                     screen,
-                    (255, 0, 0),
+                    ai_color,
                     (ax * TILE + TILE // 2, ay * TILE + TILE // 2),
                     TILE // 2 - 3,
                 )

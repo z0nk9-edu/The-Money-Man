@@ -93,7 +93,6 @@ async def main():
     blackjack_start_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50)
     next_button_rect = pygame.Rect(WIDTH - 300, HEIGHT - 50, 140, 40)
     leave_button_rect = pygame.Rect(WIDTH - 150, HEIGHT - 50, 140, 40)
-    maze_counter = 0
 
     while running:
         screen.fill((0, 0, 0))
@@ -140,7 +139,6 @@ async def main():
                         current_game.update()
 
         if isinstance(current_game, maze.Maze):
-            maze_counter += 1
             chips = current_game.player.chips
             for _ in range(maze.GEN_STEPS_PER_FRAME):
                 current_game.step()
@@ -148,8 +146,7 @@ async def main():
             if chips == 0:
                 result = "Caught by AI! You lose!"
 
-            if maze_counter % 30 == 0:
-                current_game.move_ais()
+            current_game.update_ais()
 
             current_game.draw(screen)
             panel_x = maze.WIDTH + 10
